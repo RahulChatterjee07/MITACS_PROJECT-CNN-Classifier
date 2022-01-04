@@ -19,3 +19,7 @@ In this project, I built a Convolutional Neural network-based framework in PyTor
 | ------------- | ------------- |
 | Subject-Specific | 67.54 (11.9)  |
 | Subject-Independent  | 81.89 (6.8)  |
+
+# Reference
+
+"Deep Semantic Architecture with discriminative feature visualization for neuroimage analysis", Ghosh A, Dal Maso F, Roig M et al. 2018, arXiv:1805.11704.
