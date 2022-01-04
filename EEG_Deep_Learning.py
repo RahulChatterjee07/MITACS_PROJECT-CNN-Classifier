@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
+# created on Aug 16, 2019
 
-# In[ ]:
+# In[1]:
 
 
 import numpy as np
@@ -22,20 +23,20 @@ import gc
 import shutil 
 
 
-# In[ ]:
+# In[2]:
 
 
 get_ipython().run_cell_magic('time', '', "FILE_PATH = '../input/brain stimulation-eeg-detection'\nlist_dir = os.listdir(FILE_PATH)\n\nfor zipfile in list_dir:\n    with ZipFile(os.path.join(FILE_PATH, zipfile), 'r') as z:\n        z.extractall()")
 
 
-# In[ ]:
+# In[3]:
 
 
 labels = ['tACS 10 Hz', 'tACS 20 Hz', 'tACS 70 Hz', 'tACS_indv beta',
        'tACS_indv gamma', 'Sham']
 
 
-# In[ ]:
+# In[4]:
 
 
 torch.manual_seed(2021)
@@ -57,13 +58,13 @@ opt, unknown = parser.parse_known_args()
 print(device)
 
 
-# In[ ]:
+# In[5]:
 
 
 get_ipython().run_cell_magic('time', '', "def read_csv(data, events):\n    x = pd.read_csv(data)\n    y = pd.read_csv(events)\n    id = '_'.join(x.iloc[0, 0].split('_')[:-1])\n    x = x.iloc[:,1:].values\n    y = y.iloc[:,1:].values\n    return x, y\n    \n\ntrainset = []\ngt = []\nfor filename in tqdm(os.listdir('./train')):\n    if 'data' in filename:\n        data_file_name = os.path.join('./train', filename)\n        id = filename.split('.')[0]\n        events_file_name = os.path.join('./train', '_'.join(id.split('_')[:-1]) + '_events.csv')\n        x, y = read_csv(data_file_name, events_file_name)\n        trainset.append(x.T.astype(np.float32))\n        gt.append(y.T.astype(np.float32))")
 
 
-# In[ ]:
+# In[6]:
 
 
 valid_dataset = trainset[-2:]
@@ -72,14 +73,14 @@ trainset = trainset[:-2]
 gt = gt[:-2]
 
 
-# In[ ]:
+# In[7]:
 
 
 m = np.load('../input/cnn-eeg/mean.npy')
 s = np.load('../input/cnn-eeg/std.npy')
 
 
-# In[ ]:
+# In[8]:
 
 
 def resample_data(gt, chunk_size=opt.chunk):
@@ -109,13 +110,13 @@ def resample_data(gt, chunk_size=opt.chunk):
     return index
 
 
-# In[ ]:
+# In[9]:
 
 
 get_ipython().run_cell_magic('time', '', "class EEGSignalDataset(Dataset):\n    def __init__(self, data, gt, m=m, s=s, soft_label=True, train=True):\n        self.data = data\n        self.gt = gt\n        self.train = train\n        self.soft_label = soft_label\n        self.eps = 1e-7\n        if train:\n            self.index = resample_data(gt)\n        else:\n            self.index = [(i, j) for i in range(len(data)) for j in range(data[i].shape[1])]\n        for dt in self.data:\n            dt -= m\n            dt /= s+self.eps\n    \n    def __getitem__(self, i):\n        i, j = self.index[i]\n        raw_data, label = self.data[i][:,max(0, j-opt.in_len+1):j+1], \\\n                self.gt[i][:,j]\n        \n        pad = opt.in_len - raw_data.shape[1]\n        if pad:\n            raw_data = np.pad(raw_data, ((0,0),(pad,0)), 'constant',constant_values=0)\n\n        raw_data, label = torch.from_numpy(raw_data.astype(np.float32)),\\\n                            torch.from_numpy(label.astype(np.float32))\n        if self.soft_label:\n            label[label < .02] = .02\n        return raw_data, label\n            \n    \n    def __len__(self):\n        return len(self.index)\n    \ndataset = EEGSignalDataset(trainset, gt) \ndataloader = DataLoader(dataset, batch_size = opt.batch_size,\\\n                                       num_workers = opt.n_cpu, shuffle=True)\nprint(len(dataset))")
 
 
-# In[ ]:
+# In[10]:
 
 
 class NNet(nn.Module):
@@ -151,7 +152,7 @@ class NNet(nn.Module):
 
 # # Train
 
-# In[ ]:
+# In[11]:
 
 
 nnet = NNet()
@@ -189,7 +190,7 @@ plt.show()
 
 # # Test on validset
 
-# In[ ]:
+# In[12]:
 
 
 testset = EEGSignalDataset(valid_dataset, valid_gt, train=False, soft_label=False) 
@@ -204,7 +205,7 @@ with torch.no_grad():
         
 
 
-# In[ ]:
+# In[13]:
 
 
 def plot_roc(y_true, y_pred):
@@ -224,9 +225,6 @@ plot_roc(valid_gt, y_pred.T)
 print('auc roc: ', metrics.roc_auc_score(valid_gt.T, y_pred))
 
 
-# In[ ]:
-
-
 del y_pred
 del testset
 del testloader
@@ -237,7 +235,7 @@ gc.collect()
 
 # # Test on trainset
 
-# In[ ]:
+# In[14]:
 
 
 y_pred = []
@@ -250,7 +248,7 @@ with torch.no_grad():
         y_true.append(y)
 
 
-# In[ ]:
+# In[15]:
 
 
 y_pred = np.concatenate(y_pred, axis=0)
@@ -260,7 +258,7 @@ plot_roc(y_true.T, y_pred.T)
 print('auc roc: ', metrics.roc_auc_score(y_true, y_pred))
 
 
-# In[ ]:
+# In[16]:
 
 
 i = 1231
@@ -270,7 +268,7 @@ with torch.no_grad():
     print(dataset[i][1])
 
 
-# In[ ]:
+# In[17]:
 
 
 del y_pred
